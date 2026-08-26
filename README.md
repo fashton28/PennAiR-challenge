@@ -10,3 +10,8 @@ To-Do
 [] Refactoring code to fit in a function.
 [] Applying function frame by frame
 [] Centroid (fix extra)
+[] refine comments
+
+Working on background agnostic algorithm
+
+
