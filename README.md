@@ -14,5 +14,4 @@ To-Do
 
 Working on background agnostic algorithm
 
--I will try implementing 
 

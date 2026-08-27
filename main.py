@@ -4,7 +4,7 @@ import subprocess
 import cv2
 import numpy as np
 
-VIDEO_PATH = "./media/videotest.mp4"  # TODO: replace with the real video file
+VIDEO_PATH = "./media/hardvideotest.mp4"  # TODO: replace with the real video file
 OUTPUT_PATH = "./media/output.mp4"  # annotated video written here
 RAW_PATH = "./media/output_raw.mp4"  # intermediate OpenCV output (mp4v)
 
