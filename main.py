@@ -35,6 +35,15 @@ def detect_shapes(frame):
             cX = int(M["m10"] / M["m00"])
             cY = int(M["m01"] / M["m00"])
             cv2.circle(frame, (cX, cY), 5, (0, 255, 0), -1)
+            cv2.putText(
+                frame,
+                "testing!",
+                (100 + cX, 100 + cY),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                1,
+                (255, 255, 255),
+                2,
+            )
 
     return [c for c in contours if cv2.contourArea(c) > 8000]
 
