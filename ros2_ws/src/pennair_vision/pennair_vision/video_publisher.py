@@ -5,6 +5,7 @@
 
 import cv2
 import rclpy
+from rclpy.executors import ExternalShutdownException
 from cv_bridge import CvBridge
 from rclpy.node import Node
 from sensor_msgs.msg import Image
@@ -49,8 +50,8 @@ def main(args=None):
     node = VideoPublisher()
     try:
         rclpy.spin(node)
-    except KeyboardInterrupt:
-        pass
+    except (KeyboardInterrupt, ExternalShutdownException):
+        pass  # Ctrl+C
     finally:
         node.destroy_node()
         rclpy.try_shutdown()
