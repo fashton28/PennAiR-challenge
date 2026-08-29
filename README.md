@@ -7,10 +7,10 @@ To-Do
 [] figure out a combination of openCV techniques.
 
 # Part 2 
-[] Refactoring code to fit in a function.
-[] Applying function frame by frame
-[] Centroid (fix extra)
-[] refine comments
+[X] Refactoring code to fit in a function.
+[X] Applying function frame by frame
+[X] Centroid (fix extra)
+[X] refine comments
 
 Working on background agnostic algorithm
 
