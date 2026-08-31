@@ -44,12 +44,24 @@ The last variable matters: the default Fast DDS transport silently drops the 6 M
 
 ## Run
 
+Everything through one script (no environment setup needed beyond the install above):
+
 ```sh
-micromamba activate ros2
-cd ros2_ws
-colcon build --symlink-install
-source install/setup.zsh
-ros2 run pennair_vision video_publisher --ros-args -p video_path:=$PWD/../media/hardvideotest.mp4
-ros2 run pennair_vision shape_detector            # second terminal
-ros2 run rqt_image_view rqt_image_view            # third terminal, pick /detections/image
+./run.sh                       # start the pipeline: video stream + shape detection
+./run.sh echo                  # 2nd terminal: readable detections table
+./run.sh view                  # 3rd terminal: annotated video window
+./run.sh raw                   # raw /detections messages (YAML)
+./run.sh media/videotest.mp4   # run on a different video
 ```
+
+`./run.sh` activates the conda env, sources the workspace, and calls
+`ros2 launch pennair_vision pennair.launch.py`, which starts both nodes.
+
+| Topic | Type | Content |
+|---|---|---|
+| `camera/image_raw` | `sensor_msgs/Image` | the video stream, ~30 fps |
+| `detections` | `pennair_vision_msgs/ShapeArray` | per shape: centered pixel centroid, depth (in), 3D position (in), is_circle, outline polygon |
+| `detections/image` | `sensor_msgs/Image` | annotated frames |
+
+After editing node code, no rebuild is needed (`--symlink-install`); after editing
+messages or adding files, rebuild with `colcon build --symlink-install` in `ros2_ws`.
