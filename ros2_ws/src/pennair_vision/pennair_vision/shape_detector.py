@@ -59,7 +59,6 @@ class ShapeDetector(Node):
         for contour in shapes:
             M = cv2.moments(contour)
             shape = Shape()
-            shape.header = header
             shape.x = int(M["m10"] / M["m00"]) - w // 2
             shape.y = h // 2 - int(M["m01"] / M["m00"])
             shape.is_circle = detection.is_circle(contour)
@@ -67,9 +66,10 @@ class ShapeDetector(Node):
                 points=[Point32(x=float(px), y=float(py)) for px, py in contour[:, 0, :]]
             )
             if depth is not None:
-                X, Y, Z = detection.pixel_to_3d(shape.x, shape.y, depth)
-                shape.depth = float(Z)
-                shape.position = Point(x=float(X), y=float(Y), z=float(Z))
+                # rounded to 0.01 in; the measurement itself is only good to ~1 in
+                X, Y, Z = detection.pixel_to_3d(shape.x, shape.y, depth).round(2)
+                shape.depth = Z
+                shape.position = Point(x=X, y=Y, z=Z)
             else:
                 shape.depth = -1.0
             out.shapes.append(shape)

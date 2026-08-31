@@ -20,6 +20,7 @@ setup(
         "console_scripts": [
             "video_publisher = pennair_vision.video_publisher:main",
             "shape_detector = pennair_vision.shape_detector:main",
+            "detections_echo = pennair_vision.detections_echo:main",
         ],
     },
 )

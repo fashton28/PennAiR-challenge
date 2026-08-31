@@ -1,5 +1,5 @@
-# One detected shape in a single frame.
-std_msgs/Header header
+# One detected shape in a single frame. The frame's stamp lives in the
+# enclosing ShapeArray header.
 
 # Centroid in pixels from the frame center, x right, y up (matches the
 # camera intrinsics, whose principal point is (0, 0)).
