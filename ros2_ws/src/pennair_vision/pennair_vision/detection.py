@@ -22,8 +22,11 @@ def is_circle(contour):
 
 
 def touches_border(contour, w, h):
+    # margin of one segmentation pixel: contours upscaled from the downscaled
+    # mask can stop 1/SEG_SCALE px short of the actual frame edge
+    m = int(round(1 / SEG_SCALE))
     x, y, bw, bh = cv2.boundingRect(contour)
-    return x == 0 or y == 0 or x + bw >= w or y + bh >= h
+    return x <= m or y <= m or x + bw >= w - m or y + bh >= h - m
 
 
 def circle_depth(contour):
@@ -58,7 +61,7 @@ def texture(frame, k=7):
     return cv2.blur(np.abs(cv2.Laplacian(gray, cv2.CV_32F, ksize=3)), (k, k))
 
 
-def segment(frame):
+def segment(frame, min_area=8000, speck=2000):
     band = 7
     k_color = 5.0
 
@@ -78,7 +81,7 @@ def segment(frame):
     near = cv2.dilate(coarse, np.ones((31, 31), np.uint8)) > 0
     coarse |= (smooth & near).astype(np.uint8) * 255
     coarse = cv2.morphologyEx(coarse, cv2.MORPH_OPEN, np.ones((7, 7), np.uint8))
-    coarse = fill_holes(drop_small(coarse, 2000))
+    coarse = fill_holes(drop_small(coarse, speck))
 
     # re-decide a band around each region from the raw pixels (the flattened frame smears edges)
     lab = cv2.cvtColor(cv2.medianBlur(frame, 7), cv2.COLOR_BGR2LAB).astype(np.float32)
@@ -96,7 +99,7 @@ def segment(frame):
     mask = (core | joins).astype(np.uint8) * 255
     mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, np.ones((3, 3), np.uint8))
     mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, np.ones((5, 5), np.uint8))
-    return fill_holes(drop_small(mask, 8000))
+    return fill_holes(drop_small(mask, min_area))
 
 
 def intersect(line_a, line_b):
@@ -148,9 +151,16 @@ def polygonize(contour):
     return contour
 
 
+# segmentation runs on a downscaled frame (every stage scales with pixel
+# count, ~4x faster at half resolution); contours are scaled back up
+SEG_SCALE = 0.5
+
+
 def detect_shapes(frame):
-    mask = segment(frame)
+    small = cv2.resize(frame, None, fx=SEG_SCALE, fy=SEG_SCALE, interpolation=cv2.INTER_AREA)
+    mask = segment(small, min_area=8000 * SEG_SCALE**2, speck=2000 * SEG_SCALE**2)
     contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    contours = [(c / SEG_SCALE).round().astype(np.int32) for c in contours]
     shapes = [polygonize(c) for c in contours if cv2.contourArea(c) > 8000]
 
     # the circle is the only shape of known size; on a flat surface every shape shares its depth

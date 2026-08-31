@@ -23,8 +23,10 @@ class ShapeDetector(Node):
     def __init__(self):
         super().__init__("shape_detector")
         self.bridge = CvBridge()
+        # queue depth 1: the detector is slower than the stream, so keep only
+        # the newest frame instead of working through a stale backlog
         self.sub = self.create_subscription(
-            Image, "camera/image_raw", self.on_image, 10
+            Image, "camera/image_raw", self.on_image, 1
         )
         self.pub = self.create_publisher(ShapeArray, "detections", 10)
         self.image_pub = self.create_publisher(Image, "detections/image", 10)
