@@ -1,6 +1,6 @@
 """Runs shape detection on camera/image_raw and publishes the annotated frame.
 
-    ros2 run pennair_vision shape_detector
+ros2 run pennair_vision shape_detector
 """
 
 import cv2
@@ -17,12 +17,16 @@ class ShapeDetector(Node):
     def __init__(self):
         super().__init__("shape_detector")
         self.bridge = CvBridge()
-        self.sub = self.create_subscription(Image, "camera/image_raw", self.on_image, 10)
+        self.sub = self.create_subscription(
+            Image, "camera/image_raw", self.on_image, 10
+        )
         self.pub = self.create_publisher(Image, "detections/image", 10)
         self.frames = 0
         self.get_logger().info("waiting for frames on camera/image_raw")
 
     def on_image(self, msg):
+        if not rclpy.ok():  # shutting down mid-callback; don't publish into a closed context
+            return
         # same per-frame work as the loop in main.py
         frame = self.bridge.imgmsg_to_cv2(msg, desired_encoding="bgr8")
         shapes = detect_shapes(frame)
