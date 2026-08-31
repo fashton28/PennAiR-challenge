@@ -3,6 +3,8 @@
     ros2 run pennair_vision detections_echo
 """
 
+import time
+
 import rclpy
 from rclpy.executors import ExternalShutdownException
 from rclpy.node import Node
@@ -21,7 +23,8 @@ class DetectionsEcho(Node):
 
     def on_detections(self, msg):
         t = msg.header.stamp.sec + msg.header.stamp.nanosec / 1e9
-        print(f"frame @ {t:.2f}  ({len(msg.shapes)} shapes)", flush=True)
+        clock = time.strftime("%H:%M:%S", time.localtime(t)) + f".{int(t % 1 * 10)}"
+        print(f"frame @ {clock}  ({len(msg.shapes)} shapes)", flush=True)
         for s in msg.shapes:
             kind = "circle" if s.is_circle else "polygon"
             n = len(s.outline.points)
