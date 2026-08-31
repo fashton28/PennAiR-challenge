@@ -1,4 +1,7 @@
-"""Runs shape detection on camera/image_raw and publishes the annotated frame.
+"""Runs shape detection on camera/image_raw and publishes the results.
+
+Publishes detections (positions, outlines) on `detections` and the
+annotated frame on `detections/image`.
 
 ros2 run pennair_vision shape_detector
 """
@@ -8,9 +11,12 @@ import rclpy
 from rclpy.executors import ExternalShutdownException
 from cv_bridge import CvBridge
 from rclpy.node import Node
+from geometry_msgs.msg import Point, Point32, Polygon
 from sensor_msgs.msg import Image
 
+from pennair_vision import detection
 from pennair_vision.detection import detect_shapes
+from pennair_vision_msgs.msg import Shape, ShapeArray
 
 
 class ShapeDetector(Node):
@@ -20,13 +26,12 @@ class ShapeDetector(Node):
         self.sub = self.create_subscription(
             Image, "camera/image_raw", self.on_image, 10
         )
-        self.pub = self.create_publisher(Image, "detections/image", 10)
+        self.pub = self.create_publisher(ShapeArray, "detections", 10)
+        self.image_pub = self.create_publisher(Image, "detections/image", 10)
         self.frames = 0
         self.get_logger().info("waiting for frames on camera/image_raw")
 
     def on_image(self, msg):
-        if not rclpy.ok():  # shutting down mid-callback; don't publish into a closed context
-            return
         # same per-frame work as the loop in main.py
         frame = self.bridge.imgmsg_to_cv2(msg, desired_encoding="bgr8")
         shapes = detect_shapes(frame)
@@ -37,7 +42,38 @@ class ShapeDetector(Node):
 
         out = self.bridge.cv2_to_imgmsg(frame, encoding="bgr8")
         out.header = msg.header
-        self.pub.publish(out)
+        try:
+            self.pub.publish(self.to_msg(shapes, msg.header, frame.shape))
+            self.image_pub.publish(out)
+        except Exception:
+            if rclpy.ok():  # a real failure; only shutdown mid-callback is expected
+                raise
+
+    def to_msg(self, shapes, header, frame_shape):
+        """Pack contours into a ShapeArray: centered pixel centroid, shared
+        depth from the circle, 3D position, and the outline polygon."""
+        h, w = frame_shape[:2]
+        depth = detection.last_Z
+        out = ShapeArray()
+        out.header = header
+        for contour in shapes:
+            M = cv2.moments(contour)
+            shape = Shape()
+            shape.header = header
+            shape.x = int(M["m10"] / M["m00"]) - w // 2
+            shape.y = h // 2 - int(M["m01"] / M["m00"])
+            shape.is_circle = detection.is_circle(contour)
+            shape.outline = Polygon(
+                points=[Point32(x=float(px), y=float(py)) for px, py in contour[:, 0, :]]
+            )
+            if depth is not None:
+                X, Y, Z = detection.pixel_to_3d(shape.x, shape.y, depth)
+                shape.depth = float(Z)
+                shape.position = Point(x=float(X), y=float(Y), z=float(Z))
+            else:
+                shape.depth = -1.0
+            out.shapes.append(shape)
+        return out
 
 
 def main(args=None):
