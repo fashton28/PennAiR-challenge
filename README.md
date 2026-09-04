@@ -1,8 +1,8 @@
 # PennAiR Software Challenge
 
-Solution to the PennAiR software challenge: detecting solid shapes on textured backgrounds, tracking them through video, generalizing to arbitrary backgrounds, recovering their 3D positions from camera intrinsics, and wrapping the whole pipeline in ROS2 nodes.
+Solution to the PennAiR software challenge: detecting solid shapes on textured backgrounds, tracking them through video, extending the algorithm to be background agnostic, recovering their 3D positions from camera intrinsics, and wrapping the whole pipeline in ROS2 nodes.
 
-Everything is built from classical computer vision primitives (OpenCV filtering, morphology, and contour analysis) composed into an original algorithm.
+Everything is built from classical computer vision techniques (OpenCV filtering, morphology, and contour analysis) implemented into an original algorithm.
 No pretrained models and no end-to-end learned solutions are used.
 
 ![Background agnostic detection](results/video_background_agnostic.gif)
@@ -38,7 +38,7 @@ This opens a live window and writes the annotated video to `media/output.mp4`.
 
 ### ROS2 (Part 5)
 
-One-time setup on macOS through [RoboStack](https://robostack.github.io/) (ROS2 has no official macOS binaries):
+One-time setup on macOS through [RoboStack](https://robostack.github.io/) (ROS2 has no official macOS binaries). I could've worked on an Ubuntu virtual machine but I found this setup to be more suitable for my development preferences:
 
 ```sh
 brew install micromamba
@@ -49,8 +49,6 @@ micromamba env config vars set -n ros2 RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
 micromamba activate ros2
 cd ros2_ws && colcon build --symlink-install
 ```
-
-The `RMW_IMPLEMENTATION` variable matters: the default Fast DDS transport silently drops the 6 MB 1080p frames on macOS, while CycloneDDS delivers them at the full 30 fps.
 
 After that, everything runs through one script:
 
@@ -66,11 +64,11 @@ After that, everything runs through one script:
 
 **Task**: find the solid shapes on the grass image and trace their outlines and centers.
 
-**Approach**: the key observation is that the background dominates the frame, so global statistics describe the background, and each pixel can be scored by how much it deviates from them.
+**Approach**: the key observation is that the background dominates the frame, and each pixel can be scored by how much it deviates from it.
 
 1. A large median blur (21 px) flattens the grass texture while solid shapes keep their color and edges.
 2. The image-wide median color is taken as the background color, and each pixel gets a distance from it.
-3. The threshold is not a fixed number: it is `median + 8 * MAD` of the distance image, so it adapts to the image's own statistics.
+3.  `median + 8 * MAD` provides a dynamic threshold for the distance image.
 4. A morphological opening removes speckle, and contours with an area filter give the final shapes.
 
 **Challenges**: a fixed color threshold worked on one image but was fragile.
@@ -96,27 +94,27 @@ Result: [results/video_solid_background.mp4](results/video_solid_background.mp4)
 
 ## Part 3: background agnostic detection
 
-**Task**: make the algorithm work on any background, demonstrated on the hard video (grass, gravel, snow, and a moving camera).
+**Task**: make the algorithm work on any background, demonstrated on the hard video.
 
-This required the largest rework, because the simple "distance from one background color" model breaks in two ways: backgrounds are no longer one color, and some shapes are shaded with gradients that locally match the background color.
+The core challenge here revolved around the fact backgrounds were no longer one color, and some shapes are shaded with gradients that locally match the background color.
 The final algorithm keeps the same core idea (model the background, flag what deviates) but strengthens every stage:
 
 1. **Robust color model in Lab space**: the median-blurred frame is converted to Lab, and the background is modeled per channel by median and MAD.
-The MAD is floored at 2.0 because a perfectly gray background has zero chroma spread, which would make any distance infinite.
-2. **Coarse mask**: pixels whose robust (Mahalanobis-style) distance exceeds `k = 5` form a first mask, cleaned by morphological opening and closing.
-3. **Texture cue**: solid shapes are smooth while grass and gravel are textured.
-Laplacian energy (absolute Laplacian, box-blurred) measures local texture, and smooth regions adjacent to coarse detections are merged in.
+Through some trial and error I found lowering MAD to 2.0 worked quite better on the current system.
+2. **Coarse mask**: pixels whose distance exceeds `k = 5` form a first mask, cleaned by morphological opening and closing.
+3. **Texture cue**: solid shapes are smooth while background is textured.
+Laplacian energy measures local texture, and smooth regions adjacent to coarse detections are merged in.
 This recovers gradient-shaded shape interiors that match the background color but are far too smooth to be background.
 4. **Hole filling and speck removal**: flood fill from the border closes internal holes, and connected-component analysis drops small blobs.
 5. **Edge refinement**: the median blur that stabilizes the color model also smears edges by ~10 px.
-A second pass re-decides a 7 px band around each region from lightly blurred raw pixels, comparing each pixel's distance to the shape's own mean color against its distance to the background model.
+A second pass re-decides a 7 px band around each region from lightly blurred raw pixels, comparing each pixel's distance to the shape's own mean color against its distance to the background model. This change increased accuracy significantly as it aligned edges with actual figure edges in the video. 
 6. **Polygonization**: the raw mask contour wobbles, so each shape is snapped to a clean polygon.
 `approxPolyDP` proposes vertices, a line is fit to each edge of the outline, and the 3, 4, or 5 longest sides are extended and intersected.
-The candidate polygon is accepted only if it is convex, its area stays within 0.97x to 1.12x of the contour area, and it covers at least 97% of the outline points.
-Circles skip this (fill ratio against the enclosing circle identifies them), and shapes that overlap into one blob keep their raw contour rather than getting a wrong polygon forced onto them.
+The candidate polygon is accepted only if it is convex.
 
 **Challenges**: the gradient-shaded shapes were the hardest case, since by color alone they *are* background.
 The texture cue solved that.
+
 The second hardest was edge precision, solved by the two-stage decide-coarsely-then-refine-the-band structure.
 
 Result: [results/video_background_agnostic.mp4](results/video_background_agnostic.mp4)
