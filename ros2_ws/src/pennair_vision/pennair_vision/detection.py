@@ -179,10 +179,14 @@ def detect_shapes(frame):
         y = h // 2 - cY
         label = f"({x}, {y}, {Z:.1f} in)" if Z is not None else f"({x}, {y})"
         cv2.circle(frame, (cX, cY), 5, (0, 255, 0), -1)
+        # clamp the label inside the frame so edge shapes keep readable text
+        (tw, th), _ = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 1, 2)
+        tx = min(100 + cX, w - tw - 10)
+        ty = min(100 + cY, h - 10)
         cv2.putText(
             frame,
             label,
-            (100 + cX, 100 + cY),
+            (tx, ty),
             cv2.FONT_HERSHEY_SIMPLEX,
             1,
             (255, 255, 255),
@@ -190,3 +194,5 @@ def detect_shapes(frame):
         )
 
     return shapes
+
+
