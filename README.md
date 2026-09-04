@@ -5,6 +5,8 @@ Solution to the PennAiR software challenge: detecting solid shapes on textured b
 Everything is built from classical computer vision techniques (OpenCV filtering, morphology, and contour analysis) implemented into an original algorithm.
 No pretrained models and no end-to-end learned solutions are used.
 
+each step has its own branch.
+
 ![Background agnostic detection](results/video_background_agnostic.gif)
 
 ## Results
