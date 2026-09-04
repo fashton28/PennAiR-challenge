@@ -169,11 +169,6 @@ Shape:      x, y (px from frame center), depth (in), position (geometry_msgs/Poi
 | `detections` | `pennair_vision_msgs/ShapeArray` | per shape: centered pixel centroid, depth (in), 3D position (in), is_circle, outline polygon |
 | `detections/image` | `sensor_msgs/Image` | annotated frames |
 
-## Performance
-
-The full-resolution pipeline ran at about 5 fps (195 ms per 1080p frame), too slow to feel live.
-Two changes fixed that without touching detection quality:
-
 1. **Half-resolution segmentation**: every stage of the algorithm costs proportionally to pixel count, so segmentation runs on a 2x downscaled frame (4x fewer pixels) and the contours are scaled back up to full resolution.
 Per-frame cost dropped from 195 ms to 48 ms.
 2. **Newest-frame subscription (queue depth 1)**: the detector is still slower than the 30 fps stream, so instead of queueing frames and accumulating latency, it always processes the newest frame and drops the rest.
